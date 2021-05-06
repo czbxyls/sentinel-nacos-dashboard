@@ -58,4 +58,31 @@ java -Dserver.port=8080 \
 客户端正确配置并启动后，会**在初次调用后**主动向控制台发送心跳包，汇报自己的存在；
 控制台收到客户端心跳包之后，会在左侧导航栏中显示该客户端信息。如果控制台能够看到客户端的机器信息，则表明客户端接入成功了。
 
-更多：[控制台功能介绍](./Sentinel_Dashboard_Feature.md)。
+更多：[控制台功能介绍](./Sentinel_Dashboard_Feature.md)
+
+## 4. 本次调整新增的feature
+主要参考：https://blog.csdn.net/weixin_42211601/article/details/113062732
+（感谢作者）
+基于sentinel-dashboard-1.8.1改造。
+目前仅支持限流。
+```
+nacos.address=localhost:8848
+# 如果要指定namespace就填入，不填默认是public。groupId默认值SENTINEL_GROUP。
+nacos.namespace=
+# 如果Nacos开启了鉴权，添加账号密码。
+nacos.username=nacos
+nacos.password=nacos
+```
+并对FlowControllerV2做了一定的优化。原来的代码读取规则时，每次都从Provider读，再保存到内存中。
+```
+List<FlowRuleEntity> rules = ruleProvider.getRules(app);
+```
+采用Nacos方式存储规划后，会有问题。
+比如在页面上修改规则，点保存后，由于同步延迟，从Provider读到的数据仍然是旧数据。
+调整为先从内存读，读不到再到Provider读取规则。
+```
+List<FlowRuleEntity> rules = repository.findAllByApp(app);
+if(rules == null || rules.isEmpty()) {
+    rules = ruleProvider.getRules(app);
+}
+```
